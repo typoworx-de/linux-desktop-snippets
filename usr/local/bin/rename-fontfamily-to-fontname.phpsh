@@ -1,0 +1,75 @@
+#!/usr/bin/php
+<?php
+echo "";
+if(!isset($argv[1]) || !is_dir($argv[1]))
+{
+    die('Missing work-dir!');
+}
+
+/**
+ * #ttx TheSans-5-Regular.otf TheSans-5-Regular.ttx
+ */
+$workdir = realpath($argv[1]);
+$files = glob(sprintf('%s/*.{otf,ttf}', $workdir), GLOB_BRACE);
+
+$bin['which'] = trim(shell_exec('which ttx'));
+if(!is_executable($bin['which']))
+{
+    die('Missing ttx-tool. Install using \'pip install fonttools\'!');
+}
+
+$queue = [];
+if(!is_dir($workdir . '/.backup'))
+{
+    mkdir($workdir . '/.backup');
+}
+foreach($files as $file)
+{
+    $fontName = basename($file);
+    $fontExtension = substr($fontName, strrpos($fontName, '.')+1);
+    $fontName = substr($fontName, 0, strrpos($fontName, '.'));
+
+    $ttxFile = sprintf('%s/%s.ttx', $workdir, $fontName);
+
+    printf("Generating %s.ttx\n", $fontName);
+    shell_exec(sprintf(
+            '%s -q -f %s',
+            escapeshellcmd($bin['which']),
+            escapeshellarg($file)
+    ));
+
+    $backupOriginal = sprintf('%s/.backup/%s.%s', $workdir, $fontName, $fontExtension);
+    if(!file_exists($backupOriginal))
+    {
+        printf("Creating Backup of Font-File in '.backup/%s.%s'\n", $fontName, $fontExtension);
+        copy($file, $backupOriginal);
+    }
+
+    if(file_exists($ttxFile))
+    {
+        //$xml = new SimpleXMLElement(file_get_contents($ttxFile));
+        $dom = new \DOMDocument;
+        $dom->loadXML(file_get_contents($ttxFile));
+
+        $xpath = new \DomXpath($dom);
+        $CFFFontName = $xpath->query('/ttFont/CFF/CFFFont/@name')->item(0)->textContent;
+
+        printf("Changing FontFamily to '%s'\n", $CFFFontName);
+
+        $xpath->query('/ttFont/CFF/CFFFont/FullName/@value')->item(0)->nodeValue = $CFFFontName;
+        $xpath->query('/ttFont/CFF/CFFFont/FamilyName/@value')->item(0)->nodeValue = $CFFFontName;
+        $xpath->query('/ttFont/name/namerecord[1]/text()')->item(0)->textContent = $CFFFontName;
+
+        $dom->save($ttxFile);
+
+        shell_exec(sprintf(
+            '%s -q -f %s',
+            escapeshellcmd($bin['which']),
+            escapeshellarg($ttxFile)
+        ));
+        rename(sprintf('%s/%s.%s', $workdir, $fontName, $fontExtension), $file);
+        //unlink($ttxFile);
+    }
+}
+
+echo "\nDont't forget to purge font-cache using 'sudo fc-cache -f -v'!\n\n";
