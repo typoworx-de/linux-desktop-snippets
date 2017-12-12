@@ -68,7 +68,7 @@ foreach($files as $file)
             escapeshellarg($ttxFile)
         ));
         rename(sprintf('%s/%s.%s', $workdir, $fontName, $fontExtension), $file);
-        //unlink($ttxFile);
+        unlink($ttxFile);
     }
 }
 
