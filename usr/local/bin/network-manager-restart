@@ -6,10 +6,11 @@ then
    exit 1;
 fi
 
-
-sudo dnsmasq --test || {
-  echo "Found misconfiguration in DNSmasq!";
-  exit 1;
+[[ which dnsmasq > /dev/null ]] && {
+   sudo dnsmasq --test || {
+     echo "Found misconfiguration in DNSmasq!";
+     exit 1;
+   }
 }
 
 killall nm-applet;
