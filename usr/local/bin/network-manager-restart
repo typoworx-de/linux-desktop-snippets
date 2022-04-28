@@ -1,0 +1,26 @@
+#!/bin/bash
+
+if [[ $EUID -eq 0 ]];
+then
+   echo "Do not execute with sudo!";
+   exit 1;
+fi
+
+
+sudo dnsmasq --test || {
+  echo "Found misconfiguration in DNSmasq!";
+  exit 1;
+}
+
+killall nm-applet;
+
+gnome-keyring-daemon -r -d;
+sudo service networking restart;
+sudo service openvpn stop || {
+  sudo pkill -9 nm-openvpn-service;
+  sudo pkill -9 openvpn;
+}
+sudo service network-manager restart;
+sudo service resolvconf restart;
+
+nm-applet --sm-disable > /dev/null 2>&1&
